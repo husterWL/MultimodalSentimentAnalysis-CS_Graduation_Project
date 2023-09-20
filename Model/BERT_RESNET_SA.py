@@ -4,7 +4,7 @@ from Config import config
 from transformers import AutoModel  #可以动态加载预训练模型
 from transformers import AutoTokenizer
 import torchvision.models as models
-from transformers import BertModel, BertConfig
+#from transformers import BertModel, BertConfig
 
 '''
 根据项目的模型图，源码是在各个子模型中得到文本特征、图像特征的
@@ -36,19 +36,19 @@ class TextModel(nn.Module):
             并最后通过 ReLU 激活函数来处理输出。这种模块通常用于深度学习任务中的特征变换和非线性激活操作。
             '''
         '''
-在上述代码中，self.trans 是一个包含了一系列神经网络层的模块。当你将 local_features 传递给 self.trans(local_features) 时，它的作用是对 local_features 进行一系列操作，包括：
+        在上述代码中，self.trans 是一个包含了一系列神经网络层的模块。当你将 local_features 传递给 self.trans(local_features) 时，它的作用是对 local_features 进行一系列操作，包括：
 
-Dropout 操作：nn.Dropout(config.resnet_dropout) 可以在训练过程中随机丢弃一部分节点的输出，以防止过拟合。
+        Dropout 操作：nn.Dropout(config.resnet_dropout) 可以在训练过程中随机丢弃一部分节点的输出，以防止过拟合。
 
-全连接层操作：nn.Linear(self.full_resnet.fc.in_features, config.middle_hidden_size) 将局部特征映射到一个新的特征空间，其中 config.middle_hidden_size 是新特征的维度。
+        全连接层操作：nn.Linear(self.full_resnet.fc.in_features, config.middle_hidden_size) 将局部特征映射到一个新的特征空间，其中 config.middle_hidden_size 是新特征的维度。
 
-激活函数操作：nn.ReLU(inplace=True) 使用 ReLU 激活函数对新特征进行非线性变换。
+        激活函数操作：nn.ReLU(inplace=True) 使用 ReLU 激活函数对新特征进行非线性变换。
 
-这些操作的目的是将 local_features 转换成一个更高级别的表示，以便后续任务（如情感分类）可以更好地利用。这种转换通常有助于学习到更抽象、更有表达力的特征。
+        这些操作的目的是将 local_features 转换成一个更高级别的表示，以便后续任务（如情感分类）可以更好地利用。这种转换通常有助于学习到更抽象、更有表达力的特征。
 
-区别在于，经过 self.trans(local_features) 处理后，获得的特征不再具有与原始局部特征相同的语义，而是经过了一系列变换和抽象。这些特征可能更适合你任务的需求，因此通常会在这些高级表示上进行后续的任务（如情感分类）。
+        区别在于，经过 self.trans(local_features) 处理后，获得的特征不再具有与原始局部特征相同的语义，而是经过了一系列变换和抽象。这些特征可能更适合你任务的需求，因此通常会在这些高级表示上进行后续的任务（如情感分类）。
 
-要弄清楚哪种表示更适合你的任务，通常需要通过实验来验证，以确定哪种特征更能提高模型的性能。
+        要弄清楚哪种表示更适合你的任务，通常需要通过实验来验证，以确定哪种特征更能提高模型的性能。
         '''
         # 是否进行fine-tune
         for param in self.bert.parameters():
@@ -159,7 +159,14 @@ class Attention_Visual(nn.Module):
         # 计算相关性分数
         '''
         计算文本特征 (text_features) 和局部特征 (local_features) 之间的相关性分数。
-        
+        1、 过线性映射操作 self.W，将文本特征 text_features 投影到与局部特征相同的维度空间，以确保它们可以进行点积操作。
+            这个映射的目的是使两个特征具有相同的特征维度，以便进行相似度计算。
+        2、 local_features.transpose(1, 2)：这一步对局部特征进行转置操作
+            将局部特征的维度从 (batch_size, feature_dim, num_local_features) 转置为 (batch_size, num_local_features, feature_dim)
+            其中 num_local_features 是局部特征的数量，feature_dim 是特征的维度。这个转置操作是为了使局部特征的维度与文本特征的维度对齐，以便进行点积操作。
+        3、 使用 torch.matmul 函数执行矩阵乘法操作。具体来说，它计算了文本特征矩阵和局部特征矩阵的乘积，以获得每个文本特征与每个局部特征之间的相似性分数。
+            结果是一个形状为 (batch_size, num_text_features, num_local_features) 的张量，其中 num_text_features 是文本特征的数量，num_local_features 是局部特征的数量。
+            这个张量中的每个元素表示一个文本特征与一个局部特征之间的相似性得分。
         '''
         scores = torch.matmul(self.W(text_features), local_features.transpose(1, 2))
         
@@ -172,21 +179,21 @@ class Attention_Visual(nn.Module):
         return weighted_local_features
 
 class Attention_Text(nn.Module):
-    def __init__(self, text_feature_dim, local_feature_dim):
+    def __init__(self, visual_feature_dim, text_feature_dim):
         super(Attention_Text, self).__init__()
-        self.W = nn.Linear(text_feature_dim, local_feature_dim) #按维度设定线性层
+        self.W = nn.Linear(visual_feature_dim, text_feature_dim) #按维度设定线性层
 
-    def forward(self, text_features, local_features):
+    def forward(self, visual_features, text_features):
         # 计算相关性分数
-        scores = torch.matmul(self.W(text_features), local_features.transpose(1, 2))
+        scores = torch.matmul(self.W(visual_features), text_features.transpose(1, 2))
         
         # 计算注意力权重
         attention_weights = torch.softmax(scores, dim=2)
         
         # 使用注意力权重融合局部特征
-        weighted_local_features = torch.matmul(attention_weights, local_features)
+        weighted_text_features = torch.matmul(attention_weights, text_features)
         
-        return weighted_local_features
+        return weighted_text_features
 
 class Attention_Fuse(nn.Module):
     def __init__(self, text_feature_dim, local_feature_dim):
@@ -224,65 +231,53 @@ class FuseModel(nn.Module):
         '''
         #最重要的是张量的形状要对齐
         #attention
-        self.img_attention_net = nn.MultiheadAttention(
-            
-        )
-        self.text_attention_net = nn.MultiheadAttention(
-            
-        )
-
-        '''
-        这部分放到子模型中'''
-        # 文本特征提取部分
-        bert_config = BertConfig.from_pretrained('bert-base-uncased')
-        self.text_bert = BertModel.from_pretrained('bert-base-uncased', config=bert_config)
-        
-        '''
-        这部分放到子模型中'''
-        # 图像特征提取部分
-        self.image_resnet = models.resnet50(pretrained=True)
-        self.image_feature_dim = self.image_resnet.fc.in_features
-        self.image_resnet.fc = nn.Identity()  # 移除原始ResNet的全连接层
+        self.visual_attention = Attention_Visual()
+        self.text_attention = Attention_Text()
         
 
-        # 视觉注意力网络
-        self.visual_attention = nn.Linear(self.image_feature_dim, config.attention_size)
-        
-        # 语义注意力网络
-        self.semantic_attention = nn.Linear(config.bert_hidden_size, config.attention_size)
-        
-        # 双向特征融合
-        self.bi_directional_fusion = nn.Linear(self.image_feature_dim + config.bert_hidden_size, config.fusion_size)
-        
-        # 模态融合和情感分类
-        self.modal_fusion = nn.Linear(config.fusion_size, config.fusion_size)
-        self.classifier = nn.Linear(config.fusion_size, config.num_classes)
-        
+        #全连接分类器
+        self.text_classifier = nn.Sequential(
+            nn.Dropout(config.fuse_dropout),
+            nn.Linear(config.middle_hidden_size * 2, config.out_hidden_size),
+            nn.ReLU(inplace=True),
+            nn.Dropout(config.fuse_dropout),
+            nn.Linear(config.out_hidden_size, config.num_labels),
+            nn.Softmax(dim=1)
+        )
+        self.image_classifier = nn.Sequential(
+            nn.Dropout(config.fuse_dropout),
+            nn.Linear(config.middle_hidden_size * 2, config.out_hidden_size),
+            nn.ReLU(inplace=True),
+            nn.Dropout(config.fuse_dropout),
+            nn.Linear(config.out_hidden_size, config.num_labels),
+            nn.Softmax(dim=1)
+        )
+
+        #损失函数
+        self.loss_func = nn.CrossEntropyLoss()
+
     def forward(self, texts, texts_mask, images, labels=None):
+        
+        text_joint_feature, text_feature = self.textmodel(texts, texts_mask)
+        image_joint_feature, image_feature = self.imagemodel(images)
 
-        '''
-        下面提取文本、图像特征部分放到子模型中'''
-        # 提取文本特征
-        text_outputs = self.text_bert(texts, attention_mask=texts_mask)
-        text_features = text_outputs.last_hidden_state  # 文本特征
-        
-        # 提取图像特征
-        image_features = self.image_resnet(images)
-        
-        # 视觉注意力
-        visual_attention_weights = torch.softmax(self.visual_attention(image_features), dim=1)
-        attended_image_features = torch.matmul(visual_attention_weights.transpose(1, 2), image_features).squeeze()
-        
-        # 语义注意力
-        semantic_attention_weights = torch.softmax(self.semantic_attention(text_features), dim=1)
-        attended_text_features = torch.matmul(semantic_attention_weights.transpose(1, 2), text_features).squeeze()
-        
-        # 双向特征融合
-        bi_directional_features = torch.cat((attended_image_features, attended_text_features), dim=1)
-        bi_directional_fused_features = torch.tanh(self.bi_directional_fusion(bi_directional_features))
-        
-        # 模态融合和情感分类
-        modal_fused_features = torch.tanh(self.modal_fusion(bi_directional_fused_features))
-        logits = self.classifier(modal_fused_features)
-        
-        return logits
+        visual_attention_net = self.visual_attention(text_joint_feature.size(), image_feature.size())
+        text_attention_net = self.text_attention(image_joint_feature.size(), text_feature)
+
+        visual_attention_out = visual_attention_net(text_joint_feature, image_feature)
+        text_attention_out = text_attention_net(image_joint_feature, text_feature)
+
+        visual_prob_vec = self.image_classifier(torch.cat([image_feature, visual_attention_out], dim=1))
+        text_prob_vec = self.text_classifier(torch.cat([text_feature, text_attention_out], dim=1))
+
+        #接下来就是要对两个特征进行模态融合   要修改
+        prob_vec = torch.softmax((visual_prob_vec + text_prob_vec), dim=1)
+        pred_labels = torch.argmax(prob_vec, dim=1)
+
+
+
+        if labels is not None:
+            loss = self.loss_func(prob_vec, labels)
+            return pred_labels, loss
+        else:
+            return pred_labels
