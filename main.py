@@ -4,16 +4,21 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import warnings
 warnings.filterwarnings("ignore")
+
+'''
+在导入模块时，Python会查找sys.path中列出的目录。默认情况下，Python会将当前目录添加到sys.path中。
+如果你在不同的目录中运行你的代码，你可能需要手动添加包含你的模块的目录到sys.path中。
+'''
 import sys
-sys.path.append('./utils')
-sys.path.append('./utils/APIs')
+sys.path.append('./Utils')
+# sys.path.append('./Utils/APIs')
 
 import torch
 
 import argparse
 from Config import config
-from utils.common import data_format, read_from_file, train_val_split, save_model, write_to_file
-from utils.DataProcess import Processor
+from Utils.common import data_format, read_from_file, train_val_split, save_model, write_to_file
+from Utils.DataProcess import Processor
 from Trainer import Trainer
 
 
@@ -55,7 +60,7 @@ processor = Processor(config)   #Processor类的实例对象
 #     from Models.NaiveCatModel import Model
 # else:
 #     from Models.NaiveCombineModel import Model
-from Models.OTEModel import Model
+from Model.BERT_RESNET_SA import Model
 model = Model(config)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 trainer = Trainer(config, processor, model, device) #实例化了一个训练器，包括配置、预处理、模型和硬件加速
@@ -63,8 +68,8 @@ trainer = Trainer(config, processor, model, device) #实例化了一个训练器
 
 # Train 训练
 def train():
-    data_format(os.path.join(config.root_path, './data/train.txt'),     #join函数是路径拼接作用；数据格式转换成json 
-    os.path.join(config.root_path, './data/data'), os.path.join(config.root_path, './data/train.json')) #输入地址；数据目录；输出地址
+    data_format(os.path.join(config.root_path, './Data/train.txt'),     #join函数是路径拼接作用；数据格式转换成json;./表示的是相对于当前工作目录
+    os.path.join(config.root_path, './Data/data'), os.path.join(config.root_path, './Data/train.json')) #输入地址；数据目录；输出地址
     data = read_from_file(config.train_data_path, config.data_dir, config.only) #训练数据路径。data是json格式的
     train_data, val_data = train_val_split(data)    #将分成训练集和验证集，此时是四元组形式
     train_loader = processor(train_data, config.train_params)   #调用_call_函数，返回to_loader对象；to_loader又使用到了to_dataset。。

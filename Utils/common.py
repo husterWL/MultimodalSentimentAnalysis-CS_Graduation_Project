@@ -11,6 +11,42 @@ from tqdm import tqdm   #进度条库
 from PIL import Image
 from sklearn.model_selection import train_test_split
 
+#乱序并分离数据 2023年9月23日  先用这个把整个数据文件分成训练集、验证集和测试集，后面再在main.py中转化成json文件
+import random
+def split_dataset(file_path, train_ratio):
+    #先生成两个文件
+    with open('Data/train.txt', mode = 'a', encoding = 'UTF-8') as file:
+        file.write('guid' + ',' + 'label\n')
+    with open('Data/test.txt', mode = 'a', encoding = 'UTF-8') as file:
+        file.write('guid' + ',' + 'label\n')
+
+    # 读取原始数据集  
+    with open(file_path, 'r') as file:  
+        lines = file.readlines()  
+  
+    # 打乱数据顺序  
+    random.shuffle(lines)  
+  
+    # 计算每个集合的大小  
+    total_size = len(lines) - 1  
+    train_size = int(train_ratio * total_size)  
+    # val_size = int(val_ratio * total_size)  
+    # test_size = int((1 - train_ratio) * total_size)  
+  
+    # 划分数据集
+    train_set = lines[:train_size]  
+    # val_set = lines[train_size:train_size+val_size]  
+    test_set = lines[train_size:]  
+
+    # 写入划分后的数据集文件  
+    with open('Data/train.txt', mode = 'a', encoding = 'UTF-8') as file:  
+        # file.writelines('\n'.join(train_set))   #.join()的作用是在每一个列表元素中插入指定的字符，例如这里插入的是换行符
+        file.writelines(train_set)
+    # with open('val.txt', 'w') as file:  
+    #     file.writelines(val_set)  
+    with open('Data/test.txt', mode = 'a', encoding = 'UTF-8') as file:  
+        file.writelines(test_set)
+
 # 将文本和标签格式化成一个json
 def data_format(input_path, data_dir, output_path):
     data = []

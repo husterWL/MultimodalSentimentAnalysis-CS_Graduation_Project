@@ -12,6 +12,8 @@
 思路：
     读取文件；循环判断；把通过的图文对写入新文件，新文件格式按照guid，label来
 '''
+from common import split_dataset
+
 #函数
 def majority_vote(sentiments):
     if sentiments[0] == sentiments[1]:
@@ -43,8 +45,8 @@ file = open("D:/BaiduNetdiskDownload/MVSA/labelResultAll.txt", mode='r', encodin
 data = file.readlines()
 
 #判断
-with open("D:/BaiduNetdiskDownload/MVSA/train_multi.txt", mode = 'a', encoding = 'UTF-8') as t:
-    t.write('guid' + ' ' + 'label\n')
+with open("Data/MVSA_pre.txt", mode = 'a', encoding = 'UTF-8') as t:
+    t.write('guid' + ',' + 'label\n')
 for line in data[1:]:
     parts = line.split()
     ID = parts[0]
@@ -81,6 +83,19 @@ for line in data[1:]:
         label = 'neutral'
     else:
         label = 'positive'
-    with open("D:/BaiduNetdiskDownload/MVSA/train_multi.txt", mode = 'a', encoding = 'UTF-8') as t:
-        t.write(ID + ' ' + label + '\n')
+    with open("Data/MVSA_pre.txt", mode = 'a', encoding = 'UTF-8') as t:
+        t.write(ID + ',' + label + '\n')
 file.close()
+
+#划分成两部分，训练集、测试集（验证集从训练集中分出一部分）
+split_dataset("Data/MVSA_pre.txt", 0.8)
+
+#测试集隐藏标签
+with open("Data/test_without_label.txt", mode = 'a', encoding = 'UTF-8') as file:
+    file.write('guid' + ',' +'label\n')
+    with open("Data/test.txt") as t:
+        lines = t.readlines()
+        for line in lines[1:]:
+            parts = line.split(',')
+            ID = parts[0]
+            file.write(ID + ',' + 'null\n')
