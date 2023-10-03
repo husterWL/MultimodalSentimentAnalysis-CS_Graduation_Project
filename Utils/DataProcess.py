@@ -6,10 +6,10 @@ data process: 数据处理, 包括 标签Vocab 和 数据处理类
 
 from torch.utils.data import DataLoader
 #用于将数据集划分为批次，并在训练和测试过程中提供这些批次。Dataloader类的主要作用是加速数据的读取和处理，并使数据的读取和处理更加高效和可靠。
-from Utils.APIDataset import APIDataset
-from Utils.APIEncode import api_encode
-from Utils.APIDecode import api_decode
-from Utils.APIMetric import api_metric
+from APIDataset import APIDataset
+from APIEncode import api_encode
+from APIDecode import api_decode
+from APIMetric import api_metric
 
 
 class LabelVocab:

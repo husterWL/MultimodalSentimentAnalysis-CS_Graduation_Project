@@ -23,8 +23,21 @@ from Trainer import Trainer
 
 
 # args 参数
+'''
+argparse模块是Python标准库中的一个模块，它的主要作用是处理命令行参数。
+通过使用argparse模块，开发者可以指定脚本需要的参数，包括参数的类型、名字、缩写、数据类型、描述信息等。
+这样，用户就可以通过命令行直接为脚本指定参数，而无需在脚本内部修改参数。
+'''
 parser = argparse.ArgumentParser()
 parser.add_argument('--do_train', action='store_true', help='训练模型')
+'''
+这行代码的作用就是添加一个名为 --do_train 的可选参数，如果用户在命令行中指定了这个参数，
+那么 do_train 就会被设为 True，否则就是 False。同时，还提供了帮助信息，方便用户了解这个参数的作用。
+'''
+'''
+在命令行中使用这些参数时，可以使用"--参数名"的形式来指定参数的值。
+例如，如果要设置学习率为0.001，可以在命令行中使用"--lr 0.001"来指定。
+'''
 parser.add_argument('--text_pretrained_model', default='roberta-base', help='文本分析模型', type=str)
 parser.add_argument('--fuse_model_type', default='OTE', help='融合模型类别', type=str)
 parser.add_argument('--lr', default=5e-5, help='设置学习率', type=float)
@@ -68,8 +81,10 @@ trainer = Trainer(config, processor, model, device) #实例化了一个训练器
 
 # Train 训练
 def train():
-    data_format(os.path.join(config.root_path, './Data/train.txt'),     #join函数是路径拼接作用；数据格式转换成json;./表示的是相对于当前工作目录
-    os.path.join(config.root_path, './Data/data'), os.path.join(config.root_path, './Data/train.json')) #输入地址；数据目录；输出地址
+    # data_format(os.path.join(config.root_path, './Data/train.txt'),     #join函数是路径拼接作用；数据格式转换成json;./表示的是相对于当前工作目录
+    # os.path.join(config.root_path, './Data/data'), os.path.join(config.root_path, './Data/train.json')) #输入地址；数据目录；输出地址
+    data_format(os.path.join(config.root_path, './Data/train.txt'),
+    "D:/BaiduNetdiskDownload/MVSA/data", os.path.join(config.root_path, './Data/train.json'))
     data = read_from_file(config.train_data_path, config.data_dir, config.only) #训练数据路径。data是json格式的
     train_data, val_data = train_val_split(data)    #将分成训练集和验证集，此时是四元组形式
     train_loader = processor(train_data, config.train_params)   #调用_call_函数，返回to_loader对象；to_loader又使用到了to_dataset。。
@@ -98,8 +113,8 @@ def train():
 
 # Test 测试
 def test():
-    data_format(os.path.join(config.root_path, './data/test_without_label.txt'), 
-    os.path.join(config.root_path, './data/data'), os.path.join(config.root_path, './data/test.json'))
+    data_format(os.path.join(config.root_path, './Data/test_without_label.txt'), 
+    "D:/BaiduNetdiskDownload/MVSA/data", os.path.join(config.root_path, './Data/test.json'))
     test_data = read_from_file(config.test_data_path, config.data_dir, config.only)
     test_loader = processor(test_data, config.test_params)
 
@@ -110,7 +125,7 @@ def test():
         '''
         #trainer.model.load_state_dict(torch.load(config.load_model_path))
     '''
-    load_model_path是要加载的指定模型的存储路径
+    load_model_path是要加载的指定预训练模型的存储路径
     若不为空，则使用torch.load()函数加载模型的状态字典，再使用load_state_dict()函数将状态字典加载在模型中
     状态字典包括模型的权重、偏置、学习率等等
     '''

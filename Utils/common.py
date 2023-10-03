@@ -115,9 +115,14 @@ def write_to_file(path, outputs):   #可以用来输出测试结果
 
 
 # 保存模型
-def save_model(output_path, model_type, model):
+def save_model(output_path, model_type, model): #在main中参数为 config.output_path和config.fuse_model_type
     output_model_dir = os.path.join(output_path, model_type)    #输出模型的保存目录
     if not os.path.exists(output_model_dir): os.makedirs(output_model_dir)    # 没有文件夹则创建
+    
+    '''
+    这行代码的作用就是判断模型是否有module属性，如果有，就保存model.module，否则就保存模型本身。
+    这样可以确保我们总是能够保存实际模型的状态，无论模型是否被封装在容器中。
+    '''
     model_to_save = model.module if hasattr(model, 'module') else model     # Only save the model it-self
     output_model_file = os.path.join(output_model_dir, "pytorch_model.bin")
     torch.save(model_to_save.state_dict(), output_model_file)

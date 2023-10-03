@@ -3,11 +3,11 @@ import os
 class config:         #用来配置各个模块的参数
     # 根目录
     root_path = os.getcwd()     #返回当前进程的工作目录
-    data_dir = os.path.join(root_path, './data/data/')
-    train_data_path = os.path.join(root_path, 'data/train.json')
-    test_data_path = os.path.join(root_path, 'data/test.json')
+    data_dir = "D:/BaiduNetdiskDownload/MVSA/data"
+    train_data_path = os.path.join(root_path, 'Data/train.json')
+    test_data_path = os.path.join(root_path, 'Data/test.json')
     output_path = os.path.join(root_path, 'output')
-    output_test_path = os.path.join(output_path, 'test.txt')
+    output_test_path = os.path.join(output_path, 'test_out.txt')
     load_model_path = None
 
     # 一般超参
@@ -18,7 +18,7 @@ class config:         #用来配置各个模块的参数
     loss_weight = [1.68, 9.3, 3.36]
 
     # Fuse相关
-    fuse_model_type = 'NaiveCombine'
+    fuse_model_type = 'MultiAttention'
     only = None
     middle_hidden_size = 64
     attention_nhead = 8
