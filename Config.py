@@ -27,9 +27,11 @@ class config:         #用来配置各个模块的参数
     out_hidden_size = 128
 
     # BERT相关
-    fixed_text_model_params = False
+    # fixed_text_model_params = False
+    fixed_text_model_params = True
     # bert_name = 'bert-base-uncased'
     bert_name = 'roberta-base'
+    # bert_name = 'bert-base-uncased'
     bert_learning_rate = 5e-6
     bert_dropout = 0.2
 

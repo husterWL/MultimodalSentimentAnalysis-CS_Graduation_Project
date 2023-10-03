@@ -26,17 +26,10 @@ class TextModel(nn.Module):
 
     def forward(self, bert_inputs, masks, token_type_ids=None):
         bert_out = self.bert(input_ids=bert_inputs, token_type_ids=token_type_ids, attention_mask=masks)
-        '''
-        通常情况下，hidden_state 是一个包含了输入文本序列各个位置（或标记）的编码信息的张量。
-        这个张量的形状通常是 [batch_size, sequence_length, hidden_size]
-        '''
-        hidden_state = bert_out['last_hidden_state']    #最后一个隐藏层输出
-        '''
-        pooler_output 是通过对[CLS]标记（通常是输入序列的第一个标记）的隐藏状态进行池化操作而得到的。
-        [CLS]标记的隐藏状态会经过一个池化操作（通常是均值池化或最大池化）以产生一个固定长度的向量，该向量被认为是整个输入序列的表示。
-        这个池化操作的目的是将整个序列的信息压缩成一个固定大小的向量，通常用于下游分类任务。
-        '''
+        hidden_state = bert_out['last_hidden_state']
         pooler_out = bert_out['pooler_output']
+
+        # print(hidden_state.shape, pooler_out.shape)
         
         return self.trans(hidden_state), self.trans(pooler_out)
 
@@ -46,12 +39,6 @@ class ImageModel(nn.Module):
     def __init__(self, config):
         super(ImageModel, self).__init__()
         self.full_resnet = resnet50(pretrained=True)
-        '''
-        这段代码是对self.full_resnet进行修改，将其除了最后两层（全连接与分类器）所有层拼接成一个序列，并将其赋值给self.resnet_h。
-        即只包含特征提取
-        这里使用了*符号和list()函数，将self.full_resnet.children()（即self.full_resnet中的所有层）转换为一个列表
-        并将其前4个元素拼接成一个序列。
-        '''
         self.resnet_h = nn.Sequential(
             *(list(self.full_resnet.children())[:-2]),
         )
@@ -83,37 +70,31 @@ class ImageModel(nn.Module):
                 param.requires_grad = False
             else:
                 param.requires_grad = True
-    '''
-    forward提取全局特征与局部特征
-    全局特征是最后一个卷积层的特征图
-    '''
+
     def forward(self, imgs):
-        hidden_state = self.resnet_h(imgs)  #全局特征
-        feature = self.resnet_p(hidden_state)   #上面的全局特征经过倒数第二层的全连接层得到的特征
+        hidden_state = self.resnet_h(imgs)
+        feature = self.resnet_p(hidden_state)
+
+        # print(hidden_state.shape, feature.shape)
 
         return self.hidden_trans(hidden_state), self.trans(feature)
 
 
-class Model(nn.Module):
+class FuseModel(nn.Module):
 
     def __init__(self, config):
-        super(Model, self).__init__()
+        super(FuseModel, self).__init__()
         # text
         self.text_model = TextModel(config)
         # image
         self.img_model = ImageModel(config)
         # attention
-        self.text_img_attention = nn.MultiheadAttention(
-            embed_dim=config.middle_hidden_size,
-            num_heads=config.attention_nhead, 
-            dropout=config.attention_dropout,
-        )
-        self.img_text_attention = nn.MultiheadAttention(
-            embed_dim=config.middle_hidden_size,
-            num_heads=config.attention_nhead, 
+        self.attention = nn.TransformerEncoderLayer(
+            d_model=config.middle_hidden_size,
+            nhead=config.attention_nhead, 
             dropout=config.attention_dropout
         )
-
+        
         # 全连接分类器
         self.text_classifier = nn.Sequential(
             nn.Dropout(config.fuse_dropout),
@@ -138,27 +119,15 @@ class Model(nn.Module):
 
         img_hidden_state, img_feature = self.img_model(imgs)
 
-        '''
-        这两行代码分别用于交换 PyTorch 张量中的维度顺序。
-        permute 方法允许你重新排列张量的维度，以适应特定的计算或操作需求
-        例如：
-        text_hidden_state.permute(1, 0, 2)：
-            text_hidden_state 是一个张量，假设它的形状是 [sequence_length, batch_size, hidden_size]。
-            permute(1, 0, 2) 将维度重新排列为 [batch_size, sequence_length, hidden_size]。
-            这个操作通常用于将序列长度（sequence_length）维度移到批处理（batch_size）维度之前，这在很多情况下是需要的，特别是在循环神经网络 (RNN) 或注意力机制中。
-        '''
         text_hidden_state = text_hidden_state.permute(1, 0, 2)
         img_hidden_state = img_hidden_state.permute(1, 0, 2)
 
-        text_img_attention_out, _ = self.img_text_attention(img_hidden_state, \
-            text_hidden_state, text_hidden_state)   #模型图中蓝色部分
-        text_img_attention_out = torch.mean(text_img_attention_out, dim=0).squeeze(0)
-        img_text_attention_out, _ = self.text_img_attention(text_hidden_state, \
-            img_hidden_state, img_hidden_state)     #模型图中绿色部分
-        img_text_attention_out = torch.mean(img_text_attention_out, dim=0).squeeze(0)
+        attention_out = self.attention(torch.cat([text_hidden_state, img_hidden_state], dim=0))
+        
+        attention_out = torch.mean(attention_out, dim=0).squeeze(0)
 
-        text_prob_vec = self.text_classifier(torch.cat([text_feature, img_text_attention_out], dim=1))
-        img_prob_vec = self.img_classifier(torch.cat([img_feature, text_img_attention_out], dim=1))
+        text_prob_vec = self.text_classifier(torch.cat([text_feature, attention_out], dim=1))
+        img_prob_vec = self.img_classifier(torch.cat([img_feature, attention_out], dim=1))
 
         prob_vec = torch.softmax((text_prob_vec + img_prob_vec), dim=1)
         pred_labels = torch.argmax(prob_vec, dim=1)

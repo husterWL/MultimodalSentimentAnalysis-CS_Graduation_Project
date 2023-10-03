@@ -29,7 +29,7 @@ class TextModel(nn.Module):
             nn.Dropout(config.bert_dropout),    #nn.Dropout()是一个nn.Module对象，用于在神经网络模型的训练过程中随机删除一部分神经元，以防止过拟合。
             nn.Linear(self.bert.config.hidden_size, config.middle_hidden_size), #nn.Linear()是一个nn.Module对象，用于将神经网络模型中的输入数据映射为输出数据。
             nn.ReLU(inplace=True)   #nn.ReLU(inplace=True)是一个nn.Module对象，用于将神经网络模型中的输入数据映射为输出数据，并在训练过程中使用 inplace 算法。
-        ) 
+        )
         '''
             self.trans 是一个由几个层组成的序列，其中包括一个丢弃层（nn.Dropout）、一个线性层（nn.Linear）和一个 ReLU 激活函数。
             这段代码构建了一个神经网络模块，该模块首先应用丢弃层 (Dropout)，然后通过线性层 (Linear) 执行线性变换
@@ -88,10 +88,10 @@ class TextModel(nn.Module):
         '''
         还得搞清楚这个隐藏层和池化层的作用，哪个是高级语义特征
         '''
-        hidden_state = bert_out['last_hidden_state']
+        # hidden_state = bert_out['last_hidden_state']
         pooler_out = bert_out['pooler_output']
         
-        return self.trans(joint_feature), self.trans(hidden_state), self.trans(pooler_out)
+        return self.trans(joint_feature), self.trans(pooler_out)
 
 
 class ImageModel(nn.Module):    #这个地方的改动似乎不多
@@ -105,10 +105,10 @@ class ImageModel(nn.Module):    #这个地方的改动似乎不多
             *(list(self.full_resnet.children())[:-2])
         )
         
-        self.resnet_p = nn.Sequential(
-            list(self.full_resnet.children())[-2],
-            nn.Flatten()
-        )
+        # self.resnet_p = nn.Sequential(
+        #     list(self.full_resnet.children())[-2],
+        #     nn.Flatten()
+        # )
 
         #选取的是res3卷积块中的第三个卷积层
         self.resnet_l = nn.Sequential(
@@ -147,7 +147,7 @@ class ImageModel(nn.Module):    #这个地方的改动似乎不多
         #feature = self.resnet_p(hidden_state)   #局部
         local_feature = self.resnet_l(imgs) #局部
         joint_feature = overall_feature * local_feature #联合
-        return self.trans(joint_feature), self.trans(overall_feature), self.trans(local_feature)   #trans用于变换，获得不同维度的特征
+        return self.trans(joint_feature), self.trans(local_feature)   #trans用于变换，获得不同维度的特征
 
 #定义注意力机制
 class Attention_Visual(nn.Module):
@@ -217,9 +217,9 @@ class FuseModel(nn.Module):
     def __init__(self, config):
         super(FuseModel, self).__init__()
         #text
-        self.textmodel = TextModel(config)
+        self.text_model = TextModel(config)
         #image
-        self.imagemodel = ImageModel(config)
+        self.image_model = ImageModel(config)
         '''
         视觉注意力步骤：
         1、 定义注意力机制，用于计算文本和图像之间的相关性权重。
@@ -231,9 +231,13 @@ class FuseModel(nn.Module):
         '''
         #最重要的是张量的形状要对齐
         #attention
-        self.visual_attention = Attention_Visual()
-        self.text_attention = Attention_Text()
-        
+        # self.visual_attention = Attention_Visual()
+        # self.text_attention = Attention_Text()
+        self.fuse_attention = nn.MultiheadAttention(
+            embed_dim=config.middle_hidden_size,
+            num_heads=config.attention_nhead, 
+            dropout=config.attention_dropout
+        )
 
         #全连接分类器
         self.text_classifier = nn.Sequential(
@@ -258,11 +262,11 @@ class FuseModel(nn.Module):
 
     def forward(self, texts, texts_mask, images, labels=None):
         
-        text_joint_feature, text_feature = self.textmodel(texts, texts_mask)
-        image_joint_feature, image_feature = self.imagemodel(images)
+        text_joint_feature, text_feature = self.text_model(texts, texts_mask)
+        image_joint_feature, image_feature = self.image_model(images)
 
-        visual_attention_net = self.visual_attention(text_joint_feature.size(), image_feature.size())
-        text_attention_net = self.text_attention(image_joint_feature.size(), text_feature)
+        visual_attention_net = Attention_Visual(text_joint_feature.size(), image_feature.size())
+        text_attention_net = Attention_Text(image_joint_feature.size(), text_feature.size())
 
         visual_attention_out = visual_attention_net(text_joint_feature, image_feature)
         text_attention_out = text_attention_net(image_joint_feature, text_feature)
@@ -271,7 +275,10 @@ class FuseModel(nn.Module):
         text_prob_vec = self.text_classifier(torch.cat([text_feature, text_attention_out], dim=1))
 
         #接下来就是要对两个特征进行模态融合   要修改
-        prob_vec = torch.softmax((visual_prob_vec + text_prob_vec), dim=1)
+        visual_prob_vec = visual_prob_vec.permute(1, 0, 2)
+        text_prob_vec = text_prob_vec.permute(1, 0, 2)
+        fused_features, _ = self.fuse_attention(visual_prob_vec, text_prob_vec, text_prob_vec)
+        prob_vec = torch.softmax(fused_features, dim=1)
         pred_labels = torch.argmax(prob_vec, dim=1)
 
 

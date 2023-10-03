@@ -23,7 +23,7 @@ class Trainer():            #训练器
         如果您不使用set将其转换为集合，而是直接使用列表，则可能会得到重复的参数，这将导致错误。
         通过使用set，您可以确保参数列表中没有重复的元素，并可以更轻松地处理和管理参数。'''
 
-        resnet_params = set(self.model.img_model.full_resnet.parameters())
+        resnet_params = set(self.model.image_model.full_resnet.parameters())
         other_params = list(set(self.model.parameters()) - bert_params - resnet_params)
         '''
         list是一个基本数据类型，用于存储和处理各种类型的数据。即列表，可以将集合转换为列表
@@ -40,9 +40,9 @@ class Trainer():            #训练器
                 #p指的是参数的值，n是参数的名称
             {'params': [p for n, p in self.model.text_model.bert.named_parameters() if any(nd in n for nd in no_decay)],
                 'lr': self.config.bert_learning_rate, 'weight_decay': 0.0},     #不进行正则化
-            {'params': [p for n, p in self.model.img_model.full_resnet.named_parameters() if not any(nd in n for nd in no_decay)],
+            {'params': [p for n, p in self.model.image_model.full_resnet.named_parameters() if not any(nd in n for nd in no_decay)],
                 'lr': self.config.resnet_learning_rate, 'weight_decay': self.config.weight_decay},
-            {'params': [p for n, p in self.model.img_model.full_resnet.named_parameters() if any(nd in n for nd in no_decay)],
+            {'params': [p for n, p in self.model.image_model.full_resnet.named_parameters() if any(nd in n for nd in no_decay)],
                 'lr': self.config.resnet_learning_rate, 'weight_decay': 0.0},
             {'params': other_params,
                 'lr': self.config.learning_rate, 'weight_decay': self.config.weight_decay},
