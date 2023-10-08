@@ -91,7 +91,12 @@ def read_from_file(path, data_dir, only=None): #读取json文件
                 img_path = os.path.join(data_dir, (guid + '.jpg'))  #找到guid对应的图片路径
                 # img = cv2.imread(img_path)
                 img = Image.open(img_path)  #存储guid对应的图像数据
-                img.load()
+                try:
+                    img.load()
+                except:
+                    print('turncated', guid)
+                    continue
+                #如果在加载中遇到image file is turncated,需要解决一下。目前采取的策略是直接抛弃掉该样本或者补全继续使用
 
             if only == 'img': text = ''
 

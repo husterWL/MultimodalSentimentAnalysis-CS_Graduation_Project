@@ -88,7 +88,7 @@ def train():
     # data_format(os.path.join(config.root_path, './Data/train.txt'),     #join函数是路径拼接作用；数据格式转换成json;./表示的是相对于当前工作目录
     # os.path.join(config.root_path, './Data/data'), os.path.join(config.root_path, './Data/train.json')) #输入地址；数据目录；输出地址
     data_format(os.path.join(config.root_path, './Data/train.txt'),
-    "D:/BaiduNetdiskDownload/MVSA/data", os.path.join(config.root_path, './Data/train.json'))
+    "D:/BaiduNetdiskDownload/MVSA/data", os.path.join(config.root_path, './Data/train.json'))   #第一次已经格式化为json，后面运行可以跳过
     data = read_from_file(config.train_data_path, config.data_dir, config.only) #训练数据路径。data是json格式的
     train_data, val_data = train_val_split(data)    #将分成训练集和验证集，此时是四元组形式
     train_loader = processor(train_data, config.train_params)   #调用_call_函数，返回to_loader对象；to_loader又使用到了to_dataset。。
