@@ -18,7 +18,7 @@ def api_encode(data, labelvocab, config):
     labelvocab.add_label('null')    # 空标签
 
     ''' 文本处理 BERT的tokenizer '''    #构建一个分词器tokenizer("str")会将str分成单个word包括标点，然后再转化成数字；最后返回一个字典
-    tokenizer = AutoTokenizer.from_pretrained(config.bert_name) 
+    tokenizer = AutoTokenizer.from_pretrained(config.bert_name)     #使用VPN全局模式，否则连接不到huggingface
     
     ''' 图像处理 torchvision的transforms '''
     def get_resize(image_size):
