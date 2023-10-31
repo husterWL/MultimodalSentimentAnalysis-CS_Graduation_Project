@@ -114,7 +114,7 @@ class FuseModel(nn.Module):
         # text
         self.text_model = TextModel(config)
         # image
-        self.img_model = ImageModel(config)
+        self.image_model = ImageModel(config)
         # attention
         self.attention = nn.TransformerEncoderLayer(
             d_model=config.middle_hidden_size * 2,
@@ -145,7 +145,7 @@ class FuseModel(nn.Module):
     def forward(self, texts, texts_mask, imgs, labels=None):
         text_feature = self.text_model(texts, texts_mask)
 
-        img_feature = self.img_model(imgs)
+        img_feature = self.image_model(imgs)
         '''
         在方法中，首先将文本数据和图像数据分别输入到 self.text_model 和 self.img_model 子模型中，得到相应的特征。
         '''

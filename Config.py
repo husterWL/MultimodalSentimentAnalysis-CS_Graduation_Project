@@ -6,7 +6,8 @@ class config:         #用来配置各个模块的参数
     data_dir = "D:/BaiduNetdiskDownload/MVSA/data"
     train_data_path = os.path.join(root_path, 'Data/train.json')
     test_data_path = os.path.join(root_path, 'Data/test.json')
-    output_path = os.path.join(root_path, 'output')
+    # output_path = os.path.join(root_path, 'output')
+    output_path = "D:/BaiduNetdiskDownload/output"
     output_test_path = os.path.join(output_path, 'test_out.txt')
     load_model_path = None
 
@@ -23,9 +24,9 @@ class config:         #用来配置各个模块的参数
     middle_hidden_size = 1024
     attention_nhead = 8
     attention_dropout = 0.4
-    fuse_dropout = 0.5
+    fuse_dropout = 0.3
     out_hidden_size = 128
-    # out_hidden_size = 2048
+    # out_hidden_size = 1024
 
     # BERT相关
     # fixed_text_model_params = False
@@ -43,7 +44,8 @@ class config:         #用来配置各个模块的参数
     fixed_image_model_params = True
     resnet_learning_rate = 5e-6
     resnet_dropout = 0.2
-    img_hidden_seq = 64
+    # img_hidden_seq = 64
+    img_hidden_seq = 32
 
 
     # Dataloader params

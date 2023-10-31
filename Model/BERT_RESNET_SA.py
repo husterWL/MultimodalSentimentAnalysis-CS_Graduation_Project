@@ -296,9 +296,9 @@ class FuseModel(nn.Module):
             num_heads=config.attention_nhead, 
             dropout=config.attention_dropout,
         )
-        self.fuse_attention = nn.MultiheadAttention(
-            embed_dim=config.middle_hidden_size,
-            num_heads=config.attention_nhead, 
+        self.fuse_attention = nn.TransformerEncoderLayer(
+            d_model=config.middle_hidden_size * 4,
+            nhead=config.attention_nhead, 
             dropout=config.attention_dropout
         )
 
@@ -306,18 +306,26 @@ class FuseModel(nn.Module):
         self.text_classifier = nn.Sequential(
             nn.Dropout(config.fuse_dropout),
             nn.Linear(config.middle_hidden_size * 2, config.out_hidden_size),
-            nn.ReLU(inplace=True),
-            nn.Dropout(config.fuse_dropout),
-            nn.Linear(config.out_hidden_size, config.num_labels),
-            nn.Softmax(dim=1)
+            nn.ReLU(inplace=True)
+            # nn.Dropout(config.fuse_dropout),
+            # nn.Linear(config.out_hidden_size, config.num_labels),
+            # nn.Softmax(dim=1)
         )
         self.image_classifier = nn.Sequential(
             nn.Dropout(config.fuse_dropout),
             nn.Linear(config.middle_hidden_size * 2, config.out_hidden_size),
+            nn.ReLU(inplace=True)
+            # nn.Dropout(config.fuse_dropout),
+            # nn.Linear(config.out_hidden_size, config.num_labels),
+            # nn.Softmax(dim=1)
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Dropout(config.fuse_dropout),
+            nn.Linear(config.middle_hidden_size * 4, config.out_hidden_size),
             nn.ReLU(inplace=True),
             nn.Dropout(config.fuse_dropout),
-            nn.Linear(config.out_hidden_size, config.num_labels),
-            nn.Softmax(dim=1)
+            nn.Linear(config.out_hidden_size, config.num_labels)
         )
 
         #损失函数
@@ -351,20 +359,23 @@ class FuseModel(nn.Module):
         # visual_attention_out = visual_attention_net(text_joint_feature, image_feature)
         # text_attention_out = text_attention_net(image_joint_feature, text_feature)
 
-        visual_prob_vec = self.image_classifier(torch.cat([image_feature, visual_attention_out], dim = 2))    #torch.Size([64, 32, 3])
-        text_prob_vec = self.text_classifier(torch.cat([text_feature, text_attention_out], dim = 2))  #torch.Size([54, 32, 3])
+        visual_prob_vec = torch.cat([image_feature, visual_attention_out], dim = 2)    #torch.Size([64, 16, 3])
+        text_prob_vec = torch.cat([text_feature, text_attention_out], dim = 2)  #torch.Size([54, 16, 3])
         # print(visual_prob_vec.shape)
         # print(text_prob_vec.shape)
+
         visual_prob_vec = torch.mean(visual_prob_vec, dim = 0).squeeze(0)
         text_prob_vec = torch.mean(text_prob_vec, dim = 0).squeeze(0)
         #接下来就是要对两个特征进行模态融合   要修改
         # visual_prob_vec = visual_prob_vec.permute(1, 0, 2)
         # text_prob_vec = text_prob_vec.permute(1, 0, 2)
 
+        fused_features = self.fuse_attention(torch.cat([visual_prob_vec.unsqueeze(0), text_prob_vec.unsqueeze(0)], dim = 2)).squeeze()
         #AssertionError: was expecting embedding dimension of 1024, but got 3
         # fused_features, _ = self.fuse_attention(visual_prob_vec, text_prob_vec, text_prob_vec)
-        fused_features = visual_prob_vec + text_prob_vec
-        prob_vec = torch.softmax(fused_features, dim=1)
+        # fused_features = visual_prob_vec + text_prob_vec
+        # prob_vec = torch.softmax(fused_features, dim=1)
+        prob_vec = self.classifier(fused_features)
         pred_labels = torch.argmax(prob_vec, dim=1)
 
 

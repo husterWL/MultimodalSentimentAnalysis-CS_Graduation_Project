@@ -137,10 +137,10 @@ class FuseModel(nn.Module):
         text_hidden_state, text_feature = self.text_model(texts, texts_mask)
 
         img_hidden_state, img_feature = self.image_model(imgs)
-        print(text_hidden_state.shape)
-        print(text_feature.shape)
-        print(img_hidden_state.shape)
-        print(img_feature.shape)
+        # print(text_hidden_state.shape)
+        # print(text_feature.shape)
+        # print(img_hidden_state.shape)
+        # print(img_feature.shape)
         '''
         torch.Size([16, 50, 1024])
         torch.Size([16, 1024])

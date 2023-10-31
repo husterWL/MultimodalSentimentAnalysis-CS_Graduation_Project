@@ -69,7 +69,7 @@ class FuseModel(nn.Module):
         # text
         self.text_model = TextModel(config)
         # image
-        self.img_model = ImageModel(config)
+        self.image_model = ImageModel(config)
         
         # 全连接分类器
         self.classifier = nn.Sequential(
@@ -84,7 +84,7 @@ class FuseModel(nn.Module):
     def forward(self, texts, texts_mask, imgs, labels=None):
         text_feature = self.text_model(texts, texts_mask)
 
-        img_feature = self.img_model(imgs)
+        img_feature = self.image_model(imgs)
 
         prob_vec = self.classifier(
             torch.cat([text_feature, img_feature], dim=1)

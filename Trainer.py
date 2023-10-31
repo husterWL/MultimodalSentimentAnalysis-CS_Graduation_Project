@@ -99,7 +99,7 @@ class Trainer():            #训练器
         val_loss = 0
         true_labels, pred_labels = [], []
 
-        for batch in tqdm(val_loader, desc='\t ----- [Validing] '):
+        for batch in tqdm(val_loader, desc='----- [Validing] '):
             guids, texts, texts_mask, imgs, labels = batch
             texts, texts_mask, imgs, labels = texts.to(self.device), texts_mask.to(self.device), imgs.to(self.device), labels.to(self.device)
             pred, loss = self.model(texts, texts_mask, imgs, labels=labels)

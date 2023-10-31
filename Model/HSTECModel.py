@@ -87,7 +87,7 @@ class FuseModel(nn.Module):
         # text
         self.text_model = TextModel(config)
         # image
-        self.img_model = ImageModel(config)
+        self.image_model = ImageModel(config)
         # attention
         self.attention = nn.TransformerEncoderLayer(
             d_model=config.middle_hidden_size,
@@ -117,7 +117,7 @@ class FuseModel(nn.Module):
     def forward(self, texts, texts_mask, imgs, labels=None):
         text_hidden_state, text_feature = self.text_model(texts, texts_mask)
 
-        img_hidden_state, img_feature = self.img_model(imgs)
+        img_hidden_state, img_feature = self.image_model(imgs)
 
         text_hidden_state = text_hidden_state.permute(1, 0, 2)
         img_hidden_state = img_hidden_state.permute(1, 0, 2)

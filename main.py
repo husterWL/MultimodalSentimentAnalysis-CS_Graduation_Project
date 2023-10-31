@@ -44,7 +44,7 @@ parser.add_argument('--text_pretrained_model', default='roberta-base', help='文
 parser.add_argument('--fuse_model_type', default='MultiAttention', help='融合模型类别', type=str)
 parser.add_argument('--lr', default=5e-5, help='设置学习率', type=float)
 parser.add_argument('--weight_decay', default=1e-2, help='设置权重衰减', type=float)
-parser.add_argument('--epoch', default=10, help='设置训练轮数', type=int)
+parser.add_argument('--epoch', default=1, help='设置训练轮数', type=int)
 
 parser.add_argument('--do_test', action='store_true', help='预测测试集数据')
 parser.add_argument('--load_model_path', default=None, help='已经训练好的模型路径', type=str)
@@ -65,20 +65,20 @@ print('TextModel: {}, ImageModel: {}, FuseModel: {}'.format(config.bert_name, 'R
 
 # Initilaztion 初始化 在这里选择模型
 processor = Processor(config)   #Processor类的实例对象
-# if config.fuse_model_type == 'CMAC' or config.fuse_model_type == 'CrossModalityAttentionCombine':
-    # from Model.CMACModel import FuseModel
-# elif config.fuse_model_type == 'HSTEC' or config.fuse_model_type =='HiddenStateTransformerEncoder':
-#     from Model.HSTECModel import FuseModel
-# elif config.fuse_model_type == 'OTE' or config.fuse_model_type == 'OutputTransformerEncoder':
-#     from Model.OTEModel import FuseModel
-# elif config.fuse_model_type == 'NaiveCat':
-#     from Model.NaiveCatModel import FuseModel
-# elif config.fuse_model_type == 'NaiveCombine':
-#     from Model.NaiveCombineModel import FuseModel
-# else:
-#     from Model.BERT_RESNET_SA import FuseModel
+if config.fuse_model_type == 'CMAC' or config.fuse_model_type == 'CrossModalityAttentionCombine':
+    from Model.CMACModel import FuseModel
+elif config.fuse_model_type == 'HSTEC' or config.fuse_model_type =='HiddenStateTransformerEncoder':
+    from Model.HSTECModel import FuseModel
+elif config.fuse_model_type == 'OTE' or config.fuse_model_type == 'OutputTransformerEncoder':
+    from Model.OTEModel import FuseModel
+elif config.fuse_model_type == 'NaiveCat':
+    from Model.NaiveCatModel import FuseModel
+elif config.fuse_model_type == 'NaiveCombine':
+    from Model.NaiveCombineModel import FuseModel
+else:
+    from Model.BERT_RESNET_SA import FuseModel
 # from Model.CMACModel import FuseModel
-from Model.BERT_RESNET_SA import FuseModel
+# from Model.BERT_RESNET_SA import FuseModel
 model = FuseModel(config)
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 trainer = Trainer(config, processor, model, device) #实例化了一个训练器，包括配置、预处理、模型和硬件加速
