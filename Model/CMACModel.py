@@ -58,7 +58,7 @@ class ImageModel(nn.Module):
 
         self.resnet_p = nn.Sequential(
             list(self.full_resnet.children())[-2],
-            nn.Flatten()
+            nn.Flatten()    #重点
         )
 
         # 本层为特殊层，目的是为了得到较少的特征响应图(原来的2048有些过大)：
@@ -94,14 +94,14 @@ class ImageModel(nn.Module):
         return self.hidden_trans(hidden_state), self.trans(feature)
 
 
-class Model(nn.Module):
+class FuseModel(nn.Module):
 
     def __init__(self, config):
-        super(Model, self).__init__()
+        super(FuseModel, self).__init__()
         # text
         self.text_model = TextModel(config)
         # image
-        self.img_model = ImageModel(config)
+        self.image_model = ImageModel(config)
         # attention
         self.text_img_attention = nn.MultiheadAttention(
             embed_dim=config.middle_hidden_size,
@@ -136,8 +136,17 @@ class Model(nn.Module):
     def forward(self, texts, texts_mask, imgs, labels=None):
         text_hidden_state, text_feature = self.text_model(texts, texts_mask)
 
-        img_hidden_state, img_feature = self.img_model(imgs)
-
+        img_hidden_state, img_feature = self.image_model(imgs)
+        print(text_hidden_state.shape)
+        print(text_feature.shape)
+        print(img_hidden_state.shape)
+        print(img_feature.shape)
+        '''
+        torch.Size([16, 50, 1024])
+        torch.Size([16, 1024])
+        torch.Size([16, 64, 1024])
+        torch.Size([16, 1024])
+        '''
         '''
         这两行代码分别用于交换 PyTorch 张量中的维度顺序。
         permute 方法允许你重新排列张量的维度，以适应特定的计算或操作需求
@@ -152,7 +161,7 @@ class Model(nn.Module):
 
         text_img_attention_out, _ = self.img_text_attention(img_hidden_state, \
             text_hidden_state, text_hidden_state)   #模型图中蓝色部分
-        text_img_attention_out = torch.mean(text_img_attention_out, dim=0).squeeze(0)
+        text_img_attention_out = torch.mean(text_img_attention_out, dim=0).squeeze(0)   #torch.Size([16, 1024])
         img_text_attention_out, _ = self.text_img_attention(text_hidden_state, \
             img_hidden_state, img_hidden_state)     #模型图中绿色部分
         img_text_attention_out = torch.mean(img_text_attention_out, dim=0).squeeze(0)

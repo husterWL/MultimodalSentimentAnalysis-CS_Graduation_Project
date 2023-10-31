@@ -20,11 +20,12 @@ class config:         #用来配置各个模块的参数
     # Fuse相关
     fuse_model_type = 'MultiAttention'
     only = None
-    middle_hidden_size = 64
+    middle_hidden_size = 1024
     attention_nhead = 8
     attention_dropout = 0.4
     fuse_dropout = 0.5
     out_hidden_size = 128
+    # out_hidden_size = 2048
 
     # BERT相关
     # fixed_text_model_params = False
@@ -34,6 +35,7 @@ class config:         #用来配置各个模块的参数
     # bert_name = 'bert-base-uncased'
     bert_learning_rate = 5e-6
     bert_dropout = 0.2
+    shared_size = 1024
 
     # ResNet相关
     fixed_img_model_params = False
@@ -46,8 +48,8 @@ class config:         #用来配置各个模块的参数
 
     # Dataloader params
     checkout_params = {'batch_size': 4, 'shuffle': False}
-    train_params = {'batch_size': 16, 'shuffle': True, 'num_workers': 2}
-    val_params = {'batch_size': 16, 'shuffle': False, 'num_workers': 2}
+    train_params = {'batch_size': 8, 'shuffle': True, 'num_workers': 2}    #原batch_size=16
+    val_params = {'batch_size': 8, 'shuffle': False, 'num_workers': 2}     #原batch_size=16
     test_params =  {'batch_size': 8, 'shuffle': False, 'num_workers': 2}
 
     

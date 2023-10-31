@@ -30,6 +30,9 @@ class TextModel(nn.Module):
             nn.Linear(self.bert.config.hidden_size, config.middle_hidden_size), #nn.Linear()是一个nn.Module对象，用于将神经网络模型中的输入数据映射为输出数据。
             nn.ReLU(inplace=True)   #nn.ReLU(inplace=True)是一个nn.Module对象，用于将神经网络模型中的输入数据映射为输出数据，并在训练过程中使用 inplace 算法。
         )
+        self.word2shared = nn.Linear(self.bert.config.hidden_size, config.shared_size)
+        self.phrase2shared = nn.Linear(self.bert.config.hidden_size, config.shared_size)
+        self.doc2shared = nn.Linear(self.bert.config.hidden_size, config.shared_size)
         '''
             self.trans 是一个由几个层组成的序列，其中包括一个丢弃层（nn.Dropout）、一个线性层（nn.Linear）和一个 ReLU 激活函数。
             这段代码构建了一个神经网络模块，该模块首先应用丢弃层 (Dropout)，然后通过线性层 (Linear) 执行线性变换
@@ -58,40 +61,67 @@ class TextModel(nn.Module):
                 param.requires_grad = True
     
     def forward(self, bert_inputs, masks, token_type_ids=None):
-        tokenizer = AutoTokenizer.from_pretrained(config.bert_name)
+        # tokenizer = AutoTokenizer.from_pretrained(config.bert_name)
         #修改重点
         bert_out = self.bert(input_ids=bert_inputs, token_type_ids=token_type_ids, attention_mask=masks)
         
         #获取词向量表示
-        word_vectors = bert_out[0][:,0,:].squeeze()
-
+        #word_vectors = bert_out[0][:,0,:].squeeze()
+        word_vectors = bert_out.last_hidden_state
         #获取短语向量表示
         '''
         这里需要做修改
         '''
-        phrase_vectors = torch.mean(word_vectors[tokenizer.wordpiece_tokenizer.tokenize()], dim = 0) 
-
+        #phrase_vectors = torch.mean(word_vectors[tokenizer.wordpiece_tokenizer.tokenize()], dim = 0) 
+        phrase_vectors = bert_out.pooler_output
         #获取文档向量表示
-        doc_vectors = torch.mean(word_vectors, dim = 0)
-
+        doc_vectors = torch.mean(word_vectors, dim = 1)
+        # print(word_vectors.shape)
+        # print(phrase_vectors.shape)
+        # print(doc_vectors.shape)
         '''
         我觉得还是通过注意力融合比较好，可以经过实验来验证
         '''
         #嵌入公共空间，使用tanh作为映射函数
-        embedding1 = torch.tanh(word_vectors)
-        embedding2 = torch.tanh(phrase_vectors)
-        embedding3 = torch.tanh(doc_vectors)
-        
-        #使用元素相乘获得联合特征
-        joint_feature = torch.mm(embedding1,embedding2)*embedding3
+        # embedding1 = torch.tanh(word_vectors)
+        # embedding2 = torch.tanh(phrase_vectors)
+        # embedding3 = torch.tanh(doc_vectors)
+        phrase_vectors = phrase_vectors.unsqueeze(1).expand(-1, word_vectors.size(1), -1)
+        doc_vectors = doc_vectors.unsqueeze(1).expand(-1, word_vectors.size(1), -1)
+        embedding1 = self.word2shared(word_vectors)
+        embedding2 = self.phrase2shared(phrase_vectors)
+        embedding3 = self.doc2shared(doc_vectors)
 
         '''
+        由于句子长度不一，特征维度是不断变化的 54
+        torch.Size([16, 54, 768])
+        torch.Size([16, 768])
+        torch.Size([54, 768])
+        '''
+        # print(embedding1.shape)
+        # print(embedding2.shape)
+        # print(embedding3.shape)
+        #使用元素相乘获得联合特征
+        #需要修改，不能直接进行相乘，可以使用nn.linear()先将三个层次的特征映射到同一个向量空间中
+        #RuntimeError: mat1 and mat2 shapes cannot be multiplied (54x768 and 16x768)
+        # joint_feature = torch.mm(embedding1,embedding2)*embedding3  #torch.mm()处理的是矩阵乘法，不是哈达玛积
+        #RuntimeError: The size of tensor a (52) must match the size of tensor b (16) at non-singleton dimension 0
+        # embedding2 = nn.functional.pad(embedding2, (36, 0))
+        '''
+        填充没有意义，还是在映射的时候没处理好
+        '''
+        joint_feature = embedding1*embedding2*embedding3
+        # print(joint_feature.shape)
+        '''
         还得搞清楚这个隐藏层和池化层的作用，哪个是高级语义特征
+        前者是词向量特征，后者是短语、句子特征
         '''
         # hidden_state = bert_out['last_hidden_state']
-        pooler_out = bert_out['pooler_output']
+        # print(hidden_state.shape)
+        # pooler_out = bert_out['pooler_output']
         
-        return self.trans(joint_feature), self.trans(pooler_out)
+        # return self.trans(joint_feature), self.trans(hidden_state)
+        return joint_feature, embedding1
 
 
 class ImageModel(nn.Module):    #这个地方的改动似乎不多
@@ -101,8 +131,8 @@ class ImageModel(nn.Module):    #这个地方的改动似乎不多
     def __init__(self, config):
         super(ImageModel, self).__init__()
         self.full_resnet = models.resnet50(pretrained=True)    #在模型初始化时，它创建了一个完整的 ResNet-50 模型，并加载了预训练权重。
-        self.resnet_o = nn.Sequential(
-            *(list(self.full_resnet.children())[:-2])
+        self.resnet_l = nn.Sequential(
+            *(list(self.full_resnet.children())[:-2]),
         )
         
         # self.resnet_p = nn.Sequential(
@@ -111,8 +141,8 @@ class ImageModel(nn.Module):    #这个地方的改动似乎不多
         # )
 
         #选取的是res3卷积块中的第三个卷积层
-        self.resnet_l = nn.Sequential(
-            list(self.full_resnet.children())[6][2]
+        self.resnet_g = nn.Sequential(
+            *(list(self.full_resnet.children())[:-1]),
         )
 
         # 本层为特殊层，目的是为了得到较少的特征响应图(原来的2048有些过大)：
@@ -138,22 +168,37 @@ class ImageModel(nn.Module):    #这个地方的改动似乎不多
                 param.requires_grad = False
             else:
                 param.requires_grad = True
-    '''
-    forward提取全局特征与局部特征
-    全局特征是最后一个卷积层的特征图
-    '''
+    
     def forward(self, imgs):
-        overall_feature = self.resnet_o(imgs)  #全局
+        global_feature = self.resnet_g(imgs)  #全局
         #feature = self.resnet_p(hidden_state)   #局部
+        #下面一句：RuntimeError: Given groups=1, weight of size [256, 1024, 1, 1], expected input[16, 3, 224, 224] to have 1024 channels, but got 3 channels instead
         local_feature = self.resnet_l(imgs) #局部
-        joint_feature = overall_feature * local_feature #联合
-        return self.trans(joint_feature), self.trans(local_feature)   #trans用于变换，获得不同维度的特征
+        joint_feature = global_feature * local_feature #联合    torch.Size([16, 64, 1024])
+        local_feature = self.hidden_trans(local_feature)    #torch.Size([16, 64, 1024])
+        #shape()返回的是一个对象
+        # print(global_feature.shape)
+        # print(local_feature.shape)
+        joint_feature = self.hidden_trans(joint_feature)
+        # print(joint_feature.shape)
+        '''
+        torch.Size([16, 2048, 1, 1])
+        torch.Size([16, 2048, 7, 7])
+        torch.Size([16, 2048, 7, 7])
+        '''
+        #RuntimeError: mat1 and mat2 shapes cannot be multiplied (229376x7 and 2048x1024)   
+        # return self.trans(joint_feature), self.trans(local_feature)   #trans用于变换，获得不同维度的特征
+        return joint_feature, local_feature
 
 #定义注意力机制
-class Attention_Visual(nn.Module):
-    def __init__(self, text_feature_dim, local_feature_dim):
-        super(Attention_Visual, self).__init__()
-        self.W = nn.Linear(text_feature_dim, local_feature_dim) #按维度设定线性层
+class Attention_Visual(nn.Module):                                                
+    def __init__(self, config):
+        super().__init__()
+        self.attention = nn.Sequential(
+            nn.Linear(config.shared_size, config.img_hidden_seq, bias = False),
+            nn.ReLU(inplace = True),
+            nn.Linear(config.img_hidden_seq, config.shared_size)
+        ) #按维度设定线性层
 
     def forward(self, text_features, local_features):
         # 计算相关性分数
@@ -168,13 +213,21 @@ class Attention_Visual(nn.Module):
             结果是一个形状为 (batch_size, num_text_features, num_local_features) 的张量，其中 num_text_features 是文本特征的数量，num_local_features 是局部特征的数量。
             这个张量中的每个元素表示一个文本特征与一个局部特征之间的相似性得分。
         '''
-        scores = torch.matmul(self.W(text_features), local_features.transpose(1, 2))
-        
+        text_features = text_features.view(text_features.size(0), -1, 1, text_features.size(1))
+        '''
+        local_features = local_features.permute(0, 2, 3, 1).contiguous().view(local_features.size(0), -1, text_features.size(1))
+        RuntimeError: permute(sparse_coo): number of dimensions in the tensor input does not match the length of the desired ordering of dimensions i.e. input.dim() = 3 is not equal to len(dims) = 4
+        '''
+        local_features = local_features.permute(0, 2, 3, 1).contiguous().view(local_features.size(0), -1, text_features.size(1))
+        attention_weights = self.attention(text_features).view(text_features.size(0), -1, 1, 1)
+        attention_weights = attention_weights.expand(-1, -1, local_features.size(2), -1)
+        weighted_local_features = (attention_weights * local_features).sum(dim = 1)
+        # scores = torch.matmul(self.W(text_features), local_features.transpose(1, 2))
         # 计算注意力权重
-        attention_weights = torch.softmax(scores, dim=2)
+        # attention_weights = torch.softmax(scores, dim=2)
         
         # 使用注意力权重融合局部特征
-        weighted_local_features = torch.matmul(attention_weights, local_features)
+        # weighted_local_features = torch.matmul(attention_weights, local_features)
         
         return weighted_local_features
 
@@ -231,8 +284,18 @@ class FuseModel(nn.Module):
         '''
         #最重要的是张量的形状要对齐
         #attention
-        # self.visual_attention = Attention_Visual()
-        # self.text_attention = Attention_Text()
+        # self.visual_attention = Attention_Visual(config)
+        # self.text_attention = Attention_Text(config)
+        self.visual_attention = nn.MultiheadAttention(
+            embed_dim=config.middle_hidden_size,
+            num_heads=config.attention_nhead, 
+            dropout=config.attention_dropout,
+        )
+        self.text_attention = nn.MultiheadAttention(
+            embed_dim=config.middle_hidden_size,
+            num_heads=config.attention_nhead, 
+            dropout=config.attention_dropout,
+        )
         self.fuse_attention = nn.MultiheadAttention(
             embed_dim=config.middle_hidden_size,
             num_heads=config.attention_nhead, 
@@ -264,26 +327,50 @@ class FuseModel(nn.Module):
         
         text_joint_feature, text_feature = self.text_model(texts, texts_mask)
         image_joint_feature, image_feature = self.image_model(images)
+        # print(text_joint_feature.shape)
+        # print(text_feature.shape)
+        # print(image_joint_feature.shape)
+        # print(image_feature.shape)
+        '''
+        torch.Size([16, 53, 1024])
+        torch.Size([16, 53, 1024])
+        torch.Size([16, 64, 1024])
+        torch.Size([16, 64, 1024])
+        '''
+        #RuntimeError: shape '[58, 512, 128]' is invalid for input of size 950272   =16 58 1024
+        text_joint_feature = text_joint_feature.permute(1, 0, 2)
+        image_joint_feature = image_joint_feature.permute(1, 0, 2)
+        image_feature = image_feature.permute(1, 0, 2)
+        text_feature = text_feature.permute(1, 0, 2)
 
-        visual_attention_net = Attention_Visual(text_joint_feature.size(), image_feature.size())
-        text_attention_net = Attention_Text(image_joint_feature.size(), text_feature.size())
+        #注意力分数
+        visual_attention_out, _ = self.visual_attention(image_feature, text_joint_feature, text_joint_feature)  #torch.Size([64, 16, 1024])
+        text_attention_out, _ = self.text_attention(text_feature, image_joint_feature, image_joint_feature) #torch.Size([len, 16, 1024])
+        # print(visual_attention_out.shape)
+        # print(text_attention_out.shape)
+        # visual_attention_out = visual_attention_net(text_joint_feature, image_feature)
+        # text_attention_out = text_attention_net(image_joint_feature, text_feature)
 
-        visual_attention_out = visual_attention_net(text_joint_feature, image_feature)
-        text_attention_out = text_attention_net(image_joint_feature, text_feature)
-
-        visual_prob_vec = self.image_classifier(torch.cat([image_feature, visual_attention_out], dim=1))
-        text_prob_vec = self.text_classifier(torch.cat([text_feature, text_attention_out], dim=1))
-
+        visual_prob_vec = self.image_classifier(torch.cat([image_feature, visual_attention_out], dim = 2))    #torch.Size([64, 32, 3])
+        text_prob_vec = self.text_classifier(torch.cat([text_feature, text_attention_out], dim = 2))  #torch.Size([54, 32, 3])
+        # print(visual_prob_vec.shape)
+        # print(text_prob_vec.shape)
+        visual_prob_vec = torch.mean(visual_prob_vec, dim = 0).squeeze(0)
+        text_prob_vec = torch.mean(text_prob_vec, dim = 0).squeeze(0)
         #接下来就是要对两个特征进行模态融合   要修改
-        visual_prob_vec = visual_prob_vec.permute(1, 0, 2)
-        text_prob_vec = text_prob_vec.permute(1, 0, 2)
-        fused_features, _ = self.fuse_attention(visual_prob_vec, text_prob_vec, text_prob_vec)
+        # visual_prob_vec = visual_prob_vec.permute(1, 0, 2)
+        # text_prob_vec = text_prob_vec.permute(1, 0, 2)
+
+        #AssertionError: was expecting embedding dimension of 1024, but got 3
+        # fused_features, _ = self.fuse_attention(visual_prob_vec, text_prob_vec, text_prob_vec)
+        fused_features = visual_prob_vec + text_prob_vec
         prob_vec = torch.softmax(fused_features, dim=1)
         pred_labels = torch.argmax(prob_vec, dim=1)
 
 
 
         if labels is not None:
+            #ValueError: Expected input batch_size (32) to match target batch_size (16).
             loss = self.loss_func(prob_vec, labels)
             return pred_labels, loss
         else:
