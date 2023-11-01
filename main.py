@@ -44,10 +44,10 @@ parser.add_argument('--text_pretrained_model', default='roberta-base', help='文
 parser.add_argument('--fuse_model_type', default='MultiAttention', help='融合模型类别', type=str)
 parser.add_argument('--lr', default=5e-5, help='设置学习率', type=float)
 parser.add_argument('--weight_decay', default=1e-2, help='设置权重衰减', type=float)
-parser.add_argument('--epoch', default=1, help='设置训练轮数', type=int)
+parser.add_argument('--epoch', default=5, help='设置训练轮数', type=int)
 
 parser.add_argument('--do_test', action='store_true', help='预测测试集数据')
-parser.add_argument('--load_model_path', default=None, help='已经训练好的模型路径', type=str)
+# parser.add_argument('--load_model_path', default=None, help='已经训练好的模型路径', type=str)
 parser.add_argument('--text_only', action='store_true', help='仅用文本预测')
 parser.add_argument('--img_only', action='store_true', help='仅用图像预测')
 args = parser.parse_args()
@@ -56,7 +56,8 @@ config.weight_decay = args.weight_decay
 config.epoch = args.epoch
 config.bert_name = args.text_pretrained_model
 config.fuse_model_type = args.fuse_model_type
-config.load_model_path = args.load_model_path
+# config.load_model_path = args.load_model_path
+config.load_model_path = os.path.join('d:/BaiduNetdiskDownload/output', args.fuse_model_type, './pytorch_model.bin')
 config.only = 'img' if args.img_only else None
 config.only = 'text' if args.text_only else None
 if args.img_only and args.text_only: config.only = None
@@ -146,7 +147,8 @@ if __name__ == "__main__":
         train()
     
     if args.do_test:
-        if args.load_model_path is None and not args.do_train:
+        # if args.load_model_path is None and not args.do_train:
+        if config.load_model_path is None and not args.do_train:
             print('请输入已训练好模型的路径load_model_path或者选择添加do_train arg')
         else:
             test()

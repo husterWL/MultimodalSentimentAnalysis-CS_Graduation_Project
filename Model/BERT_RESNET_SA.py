@@ -75,6 +75,7 @@ class TextModel(nn.Module):
         #phrase_vectors = torch.mean(word_vectors[tokenizer.wordpiece_tokenizer.tokenize()], dim = 0) 
         phrase_vectors = bert_out.pooler_output
         #获取文档向量表示
+        # doc_vectors , i = torch.max(word_vectors, dim = 1)
         doc_vectors = torch.mean(word_vectors, dim = 1)
         # print(word_vectors.shape)
         # print(phrase_vectors.shape)
@@ -170,10 +171,8 @@ class ImageModel(nn.Module):    #这个地方的改动似乎不多
                 param.requires_grad = True
     
     def forward(self, imgs):
-        global_feature = self.resnet_g(imgs)  #全局
-        #feature = self.resnet_p(hidden_state)   #局部
-        #下面一句：RuntimeError: Given groups=1, weight of size [256, 1024, 1, 1], expected input[16, 3, 224, 224] to have 1024 channels, but got 3 channels instead
         local_feature = self.resnet_l(imgs) #局部
+        global_feature = self.resnet_g(imgs)  #全局
         joint_feature = global_feature * local_feature #联合    torch.Size([16, 64, 1024])
         local_feature = self.hidden_trans(local_feature)    #torch.Size([16, 64, 1024])
         #shape()返回的是一个对象
@@ -297,7 +296,7 @@ class FuseModel(nn.Module):
             dropout=config.attention_dropout,
         )
         self.fuse_attention = nn.TransformerEncoderLayer(
-            d_model=config.middle_hidden_size * 4,
+            d_model=config.middle_hidden_size * 2,
             nhead=config.attention_nhead, 
             dropout=config.attention_dropout
         )
@@ -322,7 +321,7 @@ class FuseModel(nn.Module):
 
         self.classifier = nn.Sequential(
             nn.Dropout(config.fuse_dropout),
-            nn.Linear(config.middle_hidden_size * 4, config.out_hidden_size),
+            nn.Linear(config.middle_hidden_size * 2, config.out_hidden_size),
             nn.ReLU(inplace=True),
             nn.Dropout(config.fuse_dropout),
             nn.Linear(config.out_hidden_size, config.num_labels)
@@ -359,8 +358,10 @@ class FuseModel(nn.Module):
         # visual_attention_out = visual_attention_net(text_joint_feature, image_feature)
         # text_attention_out = text_attention_net(image_joint_feature, text_feature)
 
-        visual_prob_vec = torch.cat([image_feature, visual_attention_out], dim = 2)    #torch.Size([64, 16, 3])
-        text_prob_vec = torch.cat([text_feature, text_attention_out], dim = 2)  #torch.Size([54, 16, 3])
+        # visual_prob_vec = torch.cat([image_feature, visual_attention_out], dim = 2)    #torch.Size([64, 16, 3])
+        # text_prob_vec = torch.cat([text_feature, text_attention_out], dim = 2)  #torch.Size([54, 16, 3])
+        visual_prob_vec = image_feature * visual_attention_out
+        text_prob_vec = text_feature * text_attention_out
         # print(visual_prob_vec.shape)
         # print(text_prob_vec.shape)
 
@@ -376,7 +377,8 @@ class FuseModel(nn.Module):
         # fused_features = visual_prob_vec + text_prob_vec
         # prob_vec = torch.softmax(fused_features, dim=1)
         prob_vec = self.classifier(fused_features)
-        pred_labels = torch.argmax(prob_vec, dim=1)
+        # prob_vec = torch.softmax(prob_vec, dim = 1)
+        pred_labels = torch.argmax(prob_vec, dim = 1)
 
 
 

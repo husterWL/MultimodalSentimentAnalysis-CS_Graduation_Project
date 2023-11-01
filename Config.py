@@ -9,7 +9,7 @@ class config:         #用来配置各个模块的参数
     # output_path = os.path.join(root_path, 'output')
     output_path = "D:/BaiduNetdiskDownload/output"
     output_test_path = os.path.join(output_path, 'test_out.txt')
-    load_model_path = None
+    load_model_path = '"D:/BaiduNetdiskDownload/output/MultiAttention/pytorch_model.bin"'
 
     # 一般超参
     epoch = 20
@@ -21,12 +21,13 @@ class config:         #用来配置各个模块的参数
     # Fuse相关
     fuse_model_type = 'MultiAttention'
     only = None
+    # middle_hidden_size = 64
     middle_hidden_size = 1024
-    attention_nhead = 8
+    attention_nhead = 16
     attention_dropout = 0.4
     fuse_dropout = 0.3
-    out_hidden_size = 128
-    # out_hidden_size = 1024
+    out_hidden_size = 256
+    # out_hidden_size = 256
 
     # BERT相关
     # fixed_text_model_params = False
@@ -35,7 +36,7 @@ class config:         #用来配置各个模块的参数
     bert_name = 'roberta-base'
     # bert_name = 'bert-base-uncased'
     bert_learning_rate = 5e-6
-    bert_dropout = 0.2
+    bert_dropout = 0.25
     shared_size = 1024
 
     # ResNet相关
