@@ -24,8 +24,8 @@ class config:         #用来配置各个模块的参数
     # middle_hidden_size = 64
     middle_hidden_size = 1024
     attention_nhead = 16
-    attention_dropout = 0.4
-    fuse_dropout = 0.3
+    attention_dropout = 0.1
+    fuse_dropout = 0.1
     out_hidden_size = 256
     # out_hidden_size = 256
 
@@ -36,7 +36,7 @@ class config:         #用来配置各个模块的参数
     bert_name = 'roberta-base'
     # bert_name = 'bert-base-uncased'
     bert_learning_rate = 5e-6
-    bert_dropout = 0.25
+    bert_dropout = 0.2
     shared_size = 1024
 
     # ResNet相关
@@ -46,13 +46,13 @@ class config:         #用来配置各个模块的参数
     resnet_learning_rate = 5e-6
     resnet_dropout = 0.2
     # img_hidden_seq = 64
-    img_hidden_seq = 32
+    img_hidden_seq = 1024
 
 
     # Dataloader params
     checkout_params = {'batch_size': 4, 'shuffle': False}
-    train_params = {'batch_size': 8, 'shuffle': True, 'num_workers': 2}    #原batch_size=16
-    val_params = {'batch_size': 8, 'shuffle': False, 'num_workers': 2}     #原batch_size=16
+    train_params = {'batch_size': 64, 'shuffle': True, 'num_workers': 2}    #原batch_size=16
+    val_params = {'batch_size': 16, 'shuffle': False, 'num_workers': 2}     #原batch_size=16
     test_params =  {'batch_size': 8, 'shuffle': False, 'num_workers': 2}
 
     
