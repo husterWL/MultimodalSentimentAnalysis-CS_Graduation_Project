@@ -30,9 +30,10 @@ class TextModel(nn.Module):
             nn.Linear(self.bert.config.hidden_size, config.middle_hidden_size), #nn.Linear()是一个nn.Module对象，用于将神经网络模型中的输入数据映射为输出数据。
             nn.ReLU(inplace=True)   #nn.ReLU(inplace=True)是一个nn.Module对象，用于将神经网络模型中的输入数据映射为输出数据，并在训练过程中使用 inplace 算法。
         )
-        self.word2shared = nn.Linear(self.bert.config.hidden_size, config.shared_size)
-        self.phrase2shared = nn.Linear(self.bert.config.hidden_size, config.shared_size)
-        self.doc2shared = nn.Linear(self.bert.config.hidden_size, config.shared_size)
+        self.text2shared = nn.Sequential(
+            nn.Linear(self.bert.config.hidden_size, config.shared_size),
+            nn.ReLU(inplace=True)
+        )
         '''
             self.trans 是一个由几个层组成的序列，其中包括一个丢弃层（nn.Dropout）、一个线性层（nn.Linear）和一个 ReLU 激活函数。
             这段代码构建了一个神经网络模块，该模块首先应用丢弃层 (Dropout)，然后通过线性层 (Linear) 执行线性变换
@@ -77,9 +78,8 @@ class TextModel(nn.Module):
         #获取文档向量表示
         # doc_vectors , i = torch.max(word_vectors, dim = 1)
         doc_vectors = torch.mean(word_vectors, dim = 1)
-        # print(word_vectors.shape)
-        # print(phrase_vectors.shape)
-        # print(doc_vectors.shape)
+        # doc_vectors = torch.avg_pool1d(word_vectors, dim = 1)
+
         '''
         我觉得还是通过注意力融合比较好，可以经过实验来验证
         '''
@@ -89,9 +89,9 @@ class TextModel(nn.Module):
         # embedding3 = torch.tanh(doc_vectors)
         phrase_vectors = phrase_vectors.unsqueeze(1).expand(-1, word_vectors.size(1), -1)
         doc_vectors = doc_vectors.unsqueeze(1).expand(-1, word_vectors.size(1), -1)
-        embedding1 = self.word2shared(word_vectors)
-        embedding2 = self.phrase2shared(phrase_vectors)
-        embedding3 = self.doc2shared(doc_vectors)
+        embedding1 = self.text2shared(word_vectors)
+        embedding2 = self.text2shared(phrase_vectors)
+        embedding3 = self.text2shared(doc_vectors)
 
         '''
         由于句子长度不一，特征维度是不断变化的 54

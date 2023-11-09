@@ -16,9 +16,10 @@ sys.path.append('./Utils')
 import torch
 import argparse
 from Config import config
-from Utils.common import data_format, read_from_file, train_val_split, save_model, write_to_file
+from Utils.common import data_format, read_from_file, train_val_split, save_model, write_to_file, loss_draw, acc_draw, macro_draw
 from Utils.DataProcess import Processor
 from Trainer import Trainer
+import matplotlib.pyplot as plt
 
 #消除警告信息。警告信息说明对应的加载的预训练模型与任务类型不完全对应。
 from transformers import logging
@@ -43,8 +44,8 @@ parser.add_argument('--do_train', action='store_true', help='训练模型')
 parser.add_argument('--text_pretrained_model', default='roberta-base', help='文本分析模型', type=str)
 parser.add_argument('--fuse_model_type', default='MultiAttention', help='融合模型类别', type=str)
 parser.add_argument('--lr', default=5e-5, help='设置学习率', type=float)
-parser.add_argument('--weight_decay', default=1e-2, help='设置权重衰减', type=float)
-parser.add_argument('--epoch', default=5, help='设置训练轮数', type=int)
+parser.add_argument('--weight_decay', default=1e-4, help='设置权重衰减', type=float)
+parser.add_argument('--epoch', default=1, help='设置训练轮数', type=int)
 
 parser.add_argument('--do_test', action='store_true', help='预测测试集数据')
 # parser.add_argument('--load_model_path', default=None, help='已经训练好的模型路径', type=str)
@@ -100,13 +101,27 @@ def train():
     best_acc = 0    #用于记录模型在验证集上的最佳准确率
     #在每个epoch结束后，模型将在验证集上进行评估，并计算其准确率。
     epoch = config.epoch    #20，用于记录当前训练的轮数
+    tloss_list, vloss_list = [], []
+    acc_list = []
+    macro_p = []
+    macro_r = []
+    macro_f1 = []
+    x = range(0, epoch)
     for e in range(epoch):  #左闭右开0-19
         print('-' * 20 + ' ' + 'Epoch ' + str(e+1) + ' ' + '-' * 20)    #打印当前训练的轮数
-        tloss, tloss_list = trainer.train(train_loader) #参数是一个Dataloader实例对象，用train函数进行训练，返回训练损失和损失列表
+        tloss, tlosslist = trainer.train(train_loader) #参数是一个Dataloader实例对象，用train函数进行训练，返回训练损失和损失列表
         print('Train Loss: {}'.format(tloss))
-        vloss, vacc = trainer.valid(val_loader) #valid()函数用于评估模型，并返回验证损失和验证准确率
+        vloss, vacc, report_dict = trainer.valid(val_loader) #valid()函数用于评估模型，并返回验证损失和验证准确率
         print('Valid Loss: {}'.format(vloss))
         print('Valid Acc: {}'.format(vacc))
+
+        tloss_list.append(tloss)
+        vloss_list.append(vloss)
+        acc_list.append(report_dict['accuracy'])
+        macro_p.append(report_dict['macro avg']['precision'])
+        macro_r.append(report_dict['macro avg']['recall'])
+        macro_f1.append(report_dict['macro avg']['f1-score'])
+        # print('accuracy:{}'.format(report_dict['accuracy']))
         '''
         当每次验证准确率高于最佳准确率时都会更新最佳准确率，并且保存模型
         '''
@@ -115,6 +130,14 @@ def train():
             save_model(config.output_path, config.fuse_model_type, model)   #保存训练好的模型
             print('Update best model!')
         print()
+    #损失曲线
+    loss_draw(tloss_list, vloss_list, x, os.path.join(config.output_path, config.fuse_model_type, 'loss_curve.jpg'))
+
+    #准确率曲线
+    acc_draw(acc_list, x, os.path.join(config.output_path, config.fuse_model_type, 'accuracy_curve.jpg'))
+
+    #macro曲线
+    macro_draw(macro_p, macro_r, macro_f1, x, os.path.join(config.output_path, config.fuse_model_type, 'macro_curve.jpg'))
 
 
 # Test 测试

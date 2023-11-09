@@ -10,6 +10,8 @@ import torch
 from tqdm import tqdm   #进度条库
 from PIL import Image
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import numpy as np
 
 #乱序并分离数据 2023年9月23日  先用这个把整个数据文件分成训练集、验证集和测试集，后面再在main.py中转化成json文件
 import random
@@ -134,3 +136,52 @@ def save_model(output_path, model_type, model): #在main中参数为 config.outp
     '''
     pytorch把所有的模型参数用一个内部定义的dict进行保存，自称为“state_dict”。这个所谓的state_dict就是不带模型结构的模型参数
     '''
+
+def loss_draw(tloss_list, vloss_list, x, dirc):
+    plt.figure(figsize = (32, 24))
+    ax = plt.gca()
+    ax.spines['bottom'].set_linewidth(4)
+    ax.spines['left'].set_linewidth(4)
+    ax.spines['top'].set_linewidth(4)
+    ax.spines['right'].set_linewidth(4)
+    plt.plot(x, tloss_list, 'k-', label = 'train_loss', linewidth = 2.0)
+    plt.plot(x, vloss_list, 'r--', label ='valid_loss', linewidth = 2.0)
+    plt.ylabel('loss', fontsize = 40)
+    plt.xlabel('epoch', fontsize = 40)
+    plt.rc('legend', fontsize = 30)
+    plt.xticks(fontsize = 40)
+    plt.yticks(np.arange(0, 1.1, 0.1), fontsize = 40)
+    plt.legend(['train', 'valid'], loc = 'upper right')
+    plt.savefig(dirc)
+
+def acc_draw(acc_list, x, dirc):
+    plt.figure(figsize = (32, 24))
+    ax = plt.gca()
+    ax.spines['bottom'].set_linewidth(4)
+    ax.spines['left'].set_linewidth(4)
+    ax.spines['top'].set_linewidth(4)
+    ax.spines['right'].set_linewidth(4)
+    plt.plot(x, acc_list, 'k-', label = 'accuracy', linewidth = 2.0)
+    plt.ylabel('accuracy', fontsize = 40)
+    plt.xlabel('epoch', fontsize = 40)
+    plt.xticks(fontsize = 40)
+    plt.yticks(np.arange(0, 1.1, 0.1), fontsize = 40)
+    plt.legend()
+    plt.savefig(dirc)
+
+def macro_draw(p, r, f1, x, dirc):
+    plt.figure(figsize = (32, 24))
+    ax = plt.gca()
+    ax.spines['bottom'].set_linewidth(4)
+    ax.spines['left'].set_linewidth(4)
+    ax.spines['top'].set_linewidth(4)
+    ax.spines['right'].set_linewidth(4)
+    plt.plot(x, p, 'k', linestyle = 'solid', label = 'macro_precision', linewidth = 2.0)
+    plt.plot(x, r, 'k', linestyle = 'dotted', label = 'macro_recall', linewidth = 2.0)
+    plt.plot(x, f1, 'k', linestyle = 'dashed', label = 'macro_f1', linewidth = 2.0)
+    plt.xlabel('epoch', fontsize = 40)
+    plt.xticks(fontsize = 40)
+    plt.yticks(np.arange(0, 1.1, 0.1), fontsize = 40)
+    plt.rc('legend', fontsize = 30)
+    plt.legend(['precesion', 'recall', 'F1'], loc = 'upper right')
+    plt.savefig(dirc)

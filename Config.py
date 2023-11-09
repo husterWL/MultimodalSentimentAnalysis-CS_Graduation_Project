@@ -14,7 +14,7 @@ class config:         #用来配置各个模块的参数
     # 一般超参
     epoch = 20
     learning_rate = 3e-5
-    weight_decay = 0
+    weight_decay = 1e-4
     num_labels = 3
     loss_weight = [1.68, 9.3, 3.36]
 
@@ -46,7 +46,7 @@ class config:         #用来配置各个模块的参数
     resnet_learning_rate = 5e-6
     resnet_dropout = 0.2
     # img_hidden_seq = 64
-    img_hidden_seq = 1024
+    img_hidden_seq = 128
 
 
     # Dataloader params

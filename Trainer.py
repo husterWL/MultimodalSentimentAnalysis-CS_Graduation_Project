@@ -109,8 +109,8 @@ class Trainer():            #训练器
             true_labels.extend(labels.tolist())
             pred_labels.extend(pred.tolist())
             
-        metrics = self.processor.metric(true_labels, pred_labels)
-        return val_loss / len(val_loader), metrics
+        metrics, report_dict = self.processor.metric(true_labels, pred_labels)
+        return val_loss / len(val_loader), metrics, report_dict
             
     def predict(self, test_loader):
         self.model.eval()   #设置为评估模式
